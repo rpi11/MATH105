@@ -1,0 +1,146 @@
+---
+title: "p2"
+author: "Rich Pihlstrom"
+date: "2022-12-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(MASS)
+library(leaps)
+library(tidyverse)
+```
+
+#### Research Question: How do different growing and harvesting conditions affect the score for a cup of coffee?
+I wanted to look at coffee data and see what kind of effects different growing factors had on the overall rating.
+
+#### Data
+
+* Dataset from *Coffee Quality Institute*
+* Contains reviews from specialized reviewers
+* Includes the following growing conditions:
+  * Mean harvest altitude
+  * Harvest year
+  * Processing method
+    * See following link for information on processing methods: https://firebatcoffee.com/processing-methods-of-coffee-natural-washed-and-honey/#:~:text=The%20three%20main%20methods%20to,a%20different%20final%20cup%20flavour.
+  * Coffee species (*arabica* and *robusta*)
+* Includes the following scoring categories
+  * Aroma
+  * Flavor
+  * Aftertaste
+  * Acidity
+  * Body
+  * Balance
+  * Uniformity
+  * Clean Cup
+  * Sweetness
+  * Cupper Points
+  * Total Cup Points (sum of above)
+
+#### Methods
+
+Variables in my data required some filtering and cleaning—some years contained additional information as well as ranges and some country names were not spelled in English. Likewise, there were some outliers for harvest-elevation and some ambiguous inputs for the processing methods, The code to filter my data is below:
+```{r}
+coffee <- read.csv("merged_data_cleaned.csv", header=TRUE)
+
+coffeeFilt5 <- na.omit(dplyr::select(coffee, Species, Country.of.Origin,
+                                    Region, Harvest.Year, Variety, Processing.Method,
+                                    Aroma, Flavor, Aftertaste, Acidity, Body,
+                                    Balance, Uniformity, Clean.Cup, Sweetness,
+                                    Cupper.Points, Total.Cup.Points, altitude_mean_meters))
+
+coffeeFilt6 <- coffeeFilt5
+for(i in seq(1,nrow(coffeeFilt5))){
+  if(grepl("United States",coffeeFilt5[i,2])){
+    coffeeFilt5[i,2] <- "United States"
+  }
+  else if(grepl("Tanzania",coffeeFilt5[i,2])){
+    coffeeFilt5[i,2] <- "Tanzania"
+  }
+  else if(grepl("Cote",coffeeFilt5[i,2])){
+    coffeeFilt5[i,2] <- "Cote d'Ivoire"
+  }
+  
+  if(grepl("March",coffeeFilt5[i,4])){
+    coffeeFilt5[i,4] <- "2010"
+  }
+  else if(grepl("Colombia",coffeeFilt5[i,4])){
+    coffeeFilt5[i,4] <- "2011"
+  }
+  
+  if(grepl("crop",coffeeFilt5[i,4]) || grepl("Through",coffeeFilt5[i,4]) ||
+     grepl("to",coffeeFilt5[i,4]) || grepl("y-A",coffeeFilt5[i,4]) ||
+     coffeeFilt5[i,4] == "Mayo a Julio"|| coffeeFilt5[i,4] == "Abril - Julio"||
+     coffeeFilt5[i,4] == ""|| is.na(coffeeFilt5[i,4])){
+    coffeeFilt5 <- coffeeFilt5[-i,]
+  }
+  
+  if(grepl("7",coffeeFilt5[i,4]) || grepl("23 July",coffeeFilt5[i,4]) ||
+     grepl("- April",coffeeFilt5[i,4]) || grepl("- 20",coffeeFilt5[i,4]) ||
+     grepl("-20",coffeeFilt5[i,4]) || grepl("Fall 2",coffeeFilt5[i,4]) ||
+     grepl("January",coffeeFilt5[i,4]) || grepl("-Mar",coffeeFilt5[i,4]) ||
+     grepl("/",coffeeFilt5[i,4]) && coffeeFilt5[i,4] != "2017"){
+    coffeeFilt5[i,4] <- paste("20", substr(coffeeFilt5[i,4],
+                                          nchar(coffeeFilt5[i,4])-1,
+                                          nchar(coffeeFilt5[i,4])),sep = "")
+  }
+  
+}
+
+coffeeFilt5[,4] <-  strtoi(coffeeFilt5[,4])
+
+coffeeFilt4 <- filter(coffeeFilt5, Processing.Method=="Washed / Wet"|
+                       Processing.Method=="Natural / Dry"|
+                       Processing.Method=="Pulped natural / honey"|
+                       Processing.Method=="Semi-washed / Semi-pulped")
+
+coffeeFilt3 <- filter(coffeeFilt4, 
+       altitude_mean_meters < 5000)
+
+coffeeFilt <- mutate(coffeeFilt3,
+                     Process.Factor=ifelse(Processing.Method=="Natural / Dry", 0,
+                                           ifelse(Processing.Method=="Pulped natural / honey", 1,
+                                                  ifelse(Processing.Method=="Semi-washed / Semi-pulped",2,3))))
+```
+
+In answering my research question, I decided to run a multiple regression for all 10 scoring categories. I used the stepAIC function to determine which explanatory variables out of *altitude*, *harvest year*, *processing method*, and *species*, were statistically significant. I then created functions for each category that would take user input values for the 4 variables above and generate scores for each category, as well as an overall score. Example code for the regression model generation for *Body* is below:
+```{r}
+c.null = lm(Body~1, data=coffeeFilt)
+c.full = lm(Body ~ Harvest.Year + altitude_mean_meters +
+              factor(Process.Factor) + factor(Species), data=coffeeFilt)
+c.stepfwd = stepAIC(c.null, scope=list(lower=c.null, upper=c.full),
+                    direction="forward")
+summary(c.stepfwd)
+
+bodyCalc <- function(year, alt, proc){
+  beta0=-2.097e+01
+  beta1=1.412e-02
+  beta2=1.027e-04
+  if(proc == "Washed / Wet"){
+    beta3=-1.167e-01
+  }
+  else{
+    beta3=0
+  }
+  
+  return(beta0+(beta1*year)+(beta2*alt)+beta3)
+}
+```
+
+#### Visualizations
+Given the inputting nature of this project, creating a Shiny app made sense. Follow this link to view app: https://yluqa6-rpi11.shinyapps.io/Proj2
+
+I made three tab panels: "Filter," "Measure," and "Brew."
+
+* The "Filter" tab consists of three sub-tabs that illustrated my data filtering process for *harvest year*, *processing method*, and *altitude*. Each sub-tab has a "filtered" and "unfiltered" graph that shows why filtering was necessary and the effect that filtration had on the data.
+* The "Measure" tab contains a bivariate graph of *total score* versus *mean harvest altitude*. This graph allows the user to select a year and see the respective bivariate location for various countries.
+* The "Brew" tab consists of two bar graphs. The first is a horizontal bar graph that had a bin for all 10 scoring categories. The second is a vertical bar graph with a single bin that represents the overall score of the user-brewed coffee. The user selects different harvesting conditions using the four input options at the top of the page and can see what score their coffee would get on average.
+
+Aesthetics for all of the graphs is supposed to be coffee flavored—e.g. coffee color palette as well as a sine wave on top of the vertical bar graph to look like liquid.
+
+#### Final Analysis
+Given the presence of statistically significant explanatory variables in my regression models, the growing conditions for coffee certainly impact the different scoring categories. I did not want to add complexity to my calculations, but I would be interested to see how polynomial regressions or interactive linear regression models change the score—I do not think linear models are the most effective. I enjoyed building out the calculator though, as it was fun to provide an element of creativity for the user and illustrate the answer to my research question.
