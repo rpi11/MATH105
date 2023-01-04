@@ -1,0 +1,36 @@
+Abbv,Category
+EG.CFT.ACCS.ZS,Access to clean fuels and technologies for cooking (% of population)
+EG.ELC.ACCS.ZS,Access to electricity (% of population)
+NY.ADJ.NNTY.PC.CD,Adjusted net national income per capita (current US$)
+SP.ADO.TFRT,"Adolescent fertility rate (births per 1,000 women ages 15-19)"
+EN.ATM.METH.AG.KT.CE,Agricultural methane emissions (thousand metric tons of CO2 equivalent)
+EN.ATM.NOXE.AG.KT.CE,Agricultural nitrous oxide emissions (thousand metric tons of CO2 equivalent)
+EG.USE.COMM.CL.ZS,Alternative and nuclear energy (% of total energy use)
+MS.MIL.TOTL.TF.ZS,Armed forces personnel (% of total labor force)
+FB.ATM.TOTL.P5,"Automated teller machines (ATMs) (per 100,000 adults)"
+AG.LND.PRCP.MM,Average precipitation in depth (mm per year)
+EN.BIR.THRD.NO,"Bird species, threatened"
+SP.DYN.CBRT.IN,"Birth rate, crude (per 1,000 people)"
+EN.ATM.CO2E.KT,CO2 emissions (kt)
+EN.ATM.CO2E.GF.KT,CO2 emissions from gaseous fuel consumption (kt)
+EN.ATM.CO2E.LF.KT,CO2 emissions from liquid fuel consumption (kt)
+EN.ATM.CO2E.SF.KT,CO2 emissions from solid fuel consumption (kt)
+SP.REG.BRTH.ZS,Completeness of birth registration (%)
+SN.ITK.SALT.ZS,Consumption of iodized salt (% of households)
+SP.DYN.CONM.ZS,"Contraceptive prevalence, any modern method (% of married women ages 15-49)"
+SP.DYN.CDRT.IN,"Death rate, crude (per 1,000 people)"
+SE.PRM.CUAT.ZS,"Educational attainment, at least completed primary, population 25+ years, total (%) (cumulative)"
+SE.SEC.CUAT.UP.ZS,"Educational attainment, at least completed upper secondary, population 25+, total (%) (cumulative)"
+SE.TER.CUAT.MS.ZS,"Educational attainment, at least Master's or equivalent, population 25+, total (%) (cumulative)"
+SE.TER.CUAT.DO.ZS,"Educational attainment, Doctoral or equivalent, population 25+, total (%) (cumulative)"
+IT.NET.USER.ZS,Individuals using the Internet (% of population)
+SP.DYN.LE00.IN,"Life expectancy at birth, total (years)"
+SE.ADT.LITR.ZS,"Literacy rate, adult total (% of people ages 15 and above)"
+MS.MIL.XPND.GD.ZS,Military expenditure (% of GDP)
+EN.ATM.METH.KT.CE,Methane emissions (kt of CO2 equivalent)
+EN.ATM.NOXE.KT.CE,Nitrous oxide emissions (thousand metric tons of CO2 equivalent)
+EN.ATM.GHGO.KT.CE,"Other greenhouse gas emissions, HFC, PFC and SF6 (thousand metric tons of CO2 equivalent)"
+EN.HPT.THRD.NO,"Plant species (higher), threatened"
+SH.STA.SUIC.P5,"Suicide mortality rate (per 100,000 population)"
+SH.ALC.PCAP.LI,"Total alcohol consumption per capita (liters of pure alcohol, projected estimates, 15+ years of age)"
+EN.ATM.GHGT.KT.CE,Total greenhouse gas emissions (kt of CO2 equivalent)

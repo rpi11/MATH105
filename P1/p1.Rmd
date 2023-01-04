@@ -1,0 +1,320 @@
+---
+title: "p1"
+author: "Rich Pihlstrom"
+date: "2022-12-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Research Question: 
+How Do Global Emission Indices Correlate With Quality of Life Measurements?
+
+#### The Data
+
+* Citation: World Bank (2022-09-22). World Development Indicators: Environment | Access to clean fuels and technologies for cooking (% of population), 2000 - 2020. Data Planet™ Statistical Datasets: A SAGE Publishing Resource. (Dataset). Dataset-ID: 051-001-037
+* Contains information from 1960 to 2021 for every country (if available)
+* This data was collected in a variety of ways, given the breadth of categories covered.
+* Covers indices and measurement for >1,000 categories
+  * See https://datacatalog.worldbank.org/search/dataset/0037712/World-Development-Indicators for documentation
+* Pre-processed using Python
+  * Too many categories, so I filtered to the following:
+    * Access to electricity (% of population)
+    * Individuals using the Internet (% of population)
+    * Alternative and nuclear energy (% of total energy use)
+    * Adjusted net national income per capita (current US$)
+    * Birth rate, crude (per 1,000 people)
+    * Life expectancy at birth, total (years)
+    * Contraceptive prevalence, any modern method (% of married women ages 15-49)
+    * Automated teller machines (ATMs) (per 100,000 adults)
+    * Death rate, crude (per 1,000 people)
+
+Code for the data cleaning is below:
+```{r eval=FALSE}
+import csv
+
+years=(range(1960,2022))
+categoriesAbbv=[]
+categories=[]
+countries=[]
+indices=[]
+intrCountries=[]
+intrCateg=[]
+
+with open("emission_categ.csv", "r") as em, open("QOL_categ.csv", "r") as qol:
+    em_reader=csv.reader(em)
+    qol_reader=csv.reader(qol)
+    next(em_reader)
+    next(qol_reader)
+    for cat in em_reader:
+        intrCateg.append(cat[0])
+    for cat in qol_reader:
+        intrCateg.append(cat[0])
+
+with open("countries.csv", "r") as f:
+    reader=csv.reader(f)
+    for line in reader:
+        intrCountries.append(line[0])
+
+with open("WDIData.csv", "r") as f:
+   reader=csv.reader(f)
+   next(reader)
+   j=0
+   for line in reader:
+        print(j)
+        j+=1
+
+        country=line[0]
+        category=line[2]
+        if category in intrCateg and country in intrCountries:
+
+            
+            if country not in countries:
+                countries.append(country)
+            if category not in categories:
+                categoriesAbbv.append(line[3])
+                categories.append(category)
+            i=4
+            while i < 66:
+                indices.append(line[i])
+                i+=1
+
+with open("WDIData_FORMAT2.csv","w") as out:
+    header=["Country", "Year", "Category", "Index"]
+    writer=csv.writer(out, delimiter="|")
+    writer.writerow(header)
+    i=0
+    for country in countries:
+        for categ in categories:
+            for year in years:
+                if indices[i]!="":
+                    output=[country, year, categ, indices[i]]
+                    writer.writerow(output)
+                print(i)
+                i += 1
+```
+
+This produced a dataset that looks like the following:
+```{r}
+data <- na.omit(read.csv("WDIData_FORMAT2.csv", header=TRUE, sep="|"))
+tail(data)
+```
+
+#### Plan to Answer Question
+In answering my research question, I wanted to emphasize bivariate comparisons between the two categories of indices — Quality of Life and Emissions. I came up with a couple of options, that allowed for bivariate analysis, one at a certain year and one with dynamic sizing.
+
+#### The Code
+I did a Shiny App for this project. There are 4 user inputs ad 4 function outputs. The user selects the respective values for each input.
+
+The Shiny app is deployed at this link: https://yluqa6-rpi11.shinyapps.io/proj1/.
+
+The global file contains code to define variables of filtered data (some discussed above). Below is the code for the global file:
+```{r eval=FALSE}
+library(tidyverse)
+
+data <- na.omit(read.csv("WDIData_FORMAT2.csv", header=TRUE, sep="|"))
+countries <- read.csv("countries.csv", header=FALSE)
+names(countries) = "Countries"
+
+em_categories <- read.csv("emission_categ.csv", header=TRUE)
+qol_categories <- read.csv("QOL_categ.csv", header=TRUE)
+all_categories <- full_join(em_categories,qol_categories,by="Category")
+
+em_data <- filter(data, Category %in% em_categories$Category)
+qol_data <- filter(data, Category %in% qol_categories$Category)
+
+em_categ <- em_categories[,1]
+qol_categ <- qol_categories[,1]
+countr <- countries[,1]
+
+```
+
+
+For the user inputs, there are the sections of "Countries," "Year," QOL category, and emission category. The Shiny ui layout is below:
+```{r eval=FALSE}
+shinyUI(fluidPage(
+  
+  # Application title
+  titlePanel("Quality of Life vs. Emissions"),
+  sidebarLayout(
+    sidebarPanel(
+      h4("• Countries", align="left"),
+      selectInput("countries","Pick Some Countries",
+                  countries,multiple=T),
+      h4("• Categories", align="left"),
+      selectInput("qol",
+                  "Pick a quality of life category",qol_categories),
+      selectInput("emission",
+                  "Pick an emission measurement category",em_categories),
+      h4("• Year", align="left"),
+      sliderInput("year","Pick a Year",min=1990,max=2019,
+                  value=1990,sep="",
+                  animate=animationOptions(interval=500))
+    ),
+    # Show a plot of the generated distribution
+    mainPanel(
+      tabsetPanel(
+        tabPanel("QOL Time Series",plotOutput("QolCategTime")),
+        tabPanel("Emission Time Series",plotOutput("EmCategTime")),
+        tabPanel("Bivariate Plot At Year",plotOutput("BivarByYear")),
+        tabPanel("Bivariate Size Plot by Year",plotOutput("BivarSizeByYear")),
+      )
+    )
+  )
+  
+))
+```
+
+For the function outputs, there are two time series plots—one for each selected category, a bivariate plot with the selected categories as x and y axes, and a bivariate output where the size corresponds to the emission measurement and the x-axis is the year. The server code for each plot is below:
+
+Emission Time Series:
+```{r eval=FALSE}
+output$EmCategTime <- renderPlot({
+    DATA=filter(data, 
+               data$Category==input$emission,
+               data$Country %in% input$countries)
+    lower_bound=0
+    upper_bound=0
+    if(nrow(DATA)>0){
+      lower_bound=min(min(DATA$Index),0)
+      upper_bound=max(max(DATA$Index),0)
+    }
+    ggplot(DATA)+
+      geom_line(aes(x = Year, y = Index,
+                    color=Country))+
+      labs(x="Year", y="Index", 
+           title="Selected Emission Index Over Time")+
+      scale_y_continuous(expand = c(0,0), 
+                         limits = c(lower_bound, upper_bound))+
+      theme(legend.position="bottom")
+  })
+```
+
+QOL Time Series:
+```{r eval=FALSE}
+output$QolCategTime <- renderPlot({
+    DATA=filter(data, 
+                data$Category==input$qol,
+                data$Country %in% input$countries)
+    
+    lower_bound=0
+    upper_bound=0
+    if(nrow(DATA)>0){
+      lower_bound=min(min(DATA$Index),0)
+      upper_bound=max(max(DATA$Index),0)
+    }
+    ggplot(DATA)+
+      geom_line(aes(x = Year, y = Index,
+                    color=Country))+
+      labs(x="Year", y="Index", 
+           title="Selected QOL Index Over Time")+
+      scale_y_continuous(expand = c(0,0), 
+                         limits = c(lower_bound, upper_bound))+
+      theme(legend.position="bottom")
+  })
+```
+
+Bivariate Plot at Year:
+```{r eval=FALSE}
+output$BivarByYear <- renderPlot({
+    
+    year=input$year
+    prep=inner_join(filter(data, Year==year,
+                           Category==input$emission),
+                    filter(data, Year==year,
+                           Category==input$qol),
+                    by="Country")
+    
+    prep=filter(prep, Country %in% input$countries)
+    
+    y_lower_bound=0
+    y_upper_bound=0
+    x_lower_bound=0
+    x_upper_bound=0
+    
+    if(nrow(prep)>0){
+      y_lower_bound=min(min(prep$Index.y),0)
+      y_upper_bound=max(max(prep$Index.y),0)
+      x_lower_bound=min(min(prep$Index.x),0)
+      x_upper_bound=max(max(prep$Index.x),0)
+    }
+    
+    earliestYear=max(min(filter(data, Category==input$emission)$Year),
+                     min(filter(data, Category==input$qol)$Year))
+    latestYear=min(max(filter(data, Category==input$emission)$Year),
+                     max(filter(data, Category==input$qol)$Year))
+    
+    qolFilt=filter(data, Category==input$qol, Country %in% input$countries)
+    emFilt=filter(data, Category==input$emission, Country %in% input$countries)
+    
+    y_lower_bound=min(qolFilt$Index)
+    y_upper_bound=max(qolFilt$Index)
+    x_lower_bound=min(emFilt$Index)
+    x_upper_bound=max(emFilt$Index)
+    
+    p <- ggplot(prep,aes(x=Index.x, y=Index.y)) 
+
+    p + geom_point(aes(color=Country),size=6,alpha=.5)+
+      labs(x="Selected Emission Category Index",
+           y="Selected QOL Category Index",
+           title=paste("QOL Category Index by Emission\nCategory Index for year",year))+
+      scale_y_continuous(limits=c(y_lower_bound, y_upper_bound))+
+      scale_x_continuous(limits=c(x_lower_bound, x_upper_bound))+
+      theme(legend.position="bottom")
+    
+  })
+```
+
+Bivariate Size Plot by Year:
+```{r eval=FALSE}
+
+  output$BivarSizeByYear <- renderPlot({
+    
+    year=input$year
+    prep=inner_join(filter(data, Year==year,
+                           Category==input$emission),
+                    filter(data, Year==year,
+                           Category==input$qol),
+                    by="Country")
+    
+    prep=filter(prep, Country %in% input$countries)
+    
+    qolFilt=filter(data, Category==input$qol, Country %in% input$countries)
+    emFilt=filter(data, Category==input$emission, Country %in% input$countries)
+    
+    y_lower_bound=0
+    y_upper_bound=0
+    
+    if(nrow(qolFilt)>0){
+      y_lower_bound=min(qolFilt$Index)
+      y_upper_bound=max(qolFilt$Index)
+    }
+    
+    
+    denom=1
+    if(nrow(emFilt)>0){
+      while(abs(max(emFilt$Index))/denom>16){
+      denom = denom*1.25
+      }
+    }
+    
+    
+    p <- ggplot(prep,aes(x=Year.x, y=Index.y)) 
+    
+    p + geom_point(aes(color=Country),size=(prep$Index.x/denom),alpha=.5)+
+      labs(x="Year",
+           y="Selected QOL Category Index",
+           title="QOL Category Index by Emission\nCategory Index from 1990 to 2019")+
+      scale_y_continuous(limits=c(y_lower_bound, y_upper_bound))+
+      scale_x_continuous(limits=c(1990, 2019))+
+      theme(legend.position="bottom")
+    
+  })
+```
+
+I did not construct any visualizations that were not used, but had plenty of drafts that were tweaked for the final graphs. A particular tweak was adjusting the axis bounds as well as having the size of the bubbles in the last graph scaled down by an effective factor.
+
+#### Final Analysis
+I think that the visualizations are interesting, but the breadth of the data caused the project aesthetic to feel a little disparate. Likewise, I think that my formatting of the Shiny app could use more work to be a bit easier to read. For the visualizations, it's neat to see the things move depending on input, but again, the variety (and sometimes disconnectedness) of data points led to the graphs being less insightful. I think they were all constructed well though.
